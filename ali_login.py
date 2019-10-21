@@ -11,9 +11,9 @@ from urllib.parse import urlencode
 
 project_path = os.path.dirname(os.path.abspath(__file__)) # 项目所在路径
 APPID = '2016092700608827'
-ali_url = 'https://openapi.alipaydev.com/gateway.do?' # 沙箱环境
 private_key_path = os.path.join(project_path, 'private_key.pem')
 public_key_path = os.path.join(project_path, 'public_key.pem')
+ali_url = 'https://openapi.alipaydev.com/gateway.do?{}' # 沙箱环境
 
 
 class Ali_Login(object):
@@ -54,18 +54,6 @@ class Ali_Login(object):
         sign = base64.b64encode(sign).decode('utf-8')
         return sign
 
-    # 验签
-    def check_sign(self, data, sign):
-        if 'sign_type' in data:
-            data.pop('sign_type')
-        params_str = self.get_string(data)
-        try:
-            rsa.verify(params_str.encode('utf-8'), sign, Ali_Login.public_key)
-        except:
-            return False
-        else:
-            return True
-
     # 第一步：客户端授权登录,获取code
 
     # 第二步：服务端通过code 获取 access_token
@@ -77,27 +65,28 @@ class Ali_Login(object):
             'sign_type': 'RSA2',
             'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'version': '1.0',
-            'grant_type': 'authorization_code',
-            'code': code
+            'biz_content': {
+                'grant_type': 'authorization_code',
+                'code': code
+            }
         }
         params['sign'] = self.get_sign(params)
         data_str = urlencode(params)
-        url = ali_url + data_str
+        url = ali_url.format(data_str)
         res = requests.get(url)
         content = res.json()
         data = content['alipay_open_auth_token_app_response']
         sign = content['sign']
-        if self.check_sign(data, sign):
-            if data['code'] == '10000' and data['msg'] == 'Success':
-                app_auth_token = data['app_auth_token']
-                return app_auth_token
+        if data['code'] == '10000' and data['msg'] == 'Success':
+            app_auth_token = data['app_auth_token']
+            return app_auth_token
         return ''
 
 
     # 第三步：通过access_token调用接口,获取用户信息
     def get_infos(self, code):
         # token = self.get_access_token(code)
-        token = ''
+        token = '20130319e9b8d53d09034da8998caefa756c4006'
         params = {
             'app_id': APPID,
             'method': 'alipay.user.info.share',
@@ -105,18 +94,16 @@ class Ali_Login(object):
             'sign_type': 'RSA2',
             'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'version': '1.0',
-            'auth_token': '20130319e9b8d53d09034da8998caefa756c4006'
+            'auth_token': token
         }
         params['sign'] = self.get_sign(params)
         data_str = urlencode(params)
-        url = ali_url + data_str
+        url = ali_url.format(data_str)
         res = requests.get(url)
         content = res.json()
         print(content)
         data = content['alipay_user_info_share_response']
         sign = content['sign']
-        if self.check_sign(data, sign):
-            print(content)
 
 
 
